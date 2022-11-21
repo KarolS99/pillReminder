@@ -4,18 +4,10 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 from datetime import datetime as dt
 import pytz
 
+###############CONSTANTS##################
 #STATES
 MAIN_OPTION, REMINDER_OPTION, DELETE_OPTION, SELECT_TIME, SELECT_DAYS, SELECT_NAME, PROCEED_ADD, PROCEED_DELETION, PROCEED_TIMEZONE, SHOW, QUIT = range(
   11)
-
-# Enable logging
-import logging
-
-logging.basicConfig(
-  format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-  level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 #DOMAINS and FORMATS
 #days
 TIMEZONES = ["europe", "pacific", "indian", "america", "asia", "australia"]
@@ -40,6 +32,8 @@ DAY_NUM_TO_STR = {
   6: "SUN",
   7: "ALL",
 }
+#time
+TIME_FORMAT = "%H:%M"
 
 #fixed keyboards
 MAIN_KEYBOARD = [["Pill reminders"], ["Prescription reminders"]]
@@ -49,14 +43,41 @@ PRESCRIPTION_KEYBOARD = [[
   "Add prescription", "Delete prescription", "Show prescriptions"
 ], ["Done"]]
 
-#time
-time_format = "%H:%M"
+###############CONSTANTS##################
+
+
 #flags for unsupported formats
 name_fail = False
 time_fail = False
 day_fail = False
 
+# Enable logging
+import logging
 
+logging.basicConfig(
+  format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+  level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+#FUNCTIONS TO HANDLE JOBS
+def alarm(context: CallbackContext) -> None:
+  """Send the alarm message."""
+  job = context.job
+  context.bot.send_message(job.context,
+                           text="It's " + job.name[9:] + " time!⏰")
+
+def remove_job_if_exists(name: str, context: CallbackContext) -> bool:
+  """Remove job with given name. Returns whether job was removed."""
+  current_jobs = context.job_queue.get_jobs_by_name(name)
+  if not current_jobs:
+    return False
+  for job in current_jobs:
+    job.schedule_removal()
+  return True
+  
+
+#FUNCTIONS TO GATHER USER DATA
 def retrieve_user_data(context,type):
   '''Returns a list of user reminders'''
   return [
@@ -64,6 +85,9 @@ def retrieve_user_data(context,type):
   ]
 
 
+#BOT OPERATIONS
+
+#SHOW
 def show_reminders(update: Update, context: CallbackContext) -> int:
   ''' Shows user's registrated timers for reminders'''
   reminders = retrieve_user_data(context, 'reminder')
@@ -80,13 +104,7 @@ def show_reminders(update: Update, context: CallbackContext) -> int:
       "\n\n..wait, it looks like you have to setup a timer yet!")
   return REMINDER_OPTION
   
-def alarm(context: CallbackContext) -> None:
-  """Send the alarm message."""
-  job = context.job
-  context.bot.send_message(job.context,
-                           text="It's " + job.name[9:] + " time!⏰")
-
-
+#DELETE
 def delete(update: Update, context: CallbackContext) -> int:
   '''Cancel a saved reminder'''
   reminders = retrieve_user_data(context,'reminder')
@@ -118,7 +136,6 @@ def delete(update: Update, context: CallbackContext) -> int:
       "If you have no reminders, how can you delete one?", reply_markup=markup)
     return REMINDER_OPTION
 
-
 def after_delete(update: Update, context: CallbackContext) -> int:
   """Deletes reminder"""
   to_delete = update.message.text
@@ -137,27 +154,7 @@ def after_delete(update: Update, context: CallbackContext) -> int:
   except:
     update.message.reply_text("Your reminder doesn't exist :(")
 
-
-def remove_job_if_exists(name: str, context: CallbackContext) -> bool:
-  """Remove job with given name. Returns whether job was removed."""
-  current_jobs = context.job_queue.get_jobs_by_name(name)
-  if not current_jobs:
-    return False
-  for job in current_jobs:
-    job.schedule_removal()
-  return True
-
-
-def help_command(update: Update, context: CallbackContext) -> None:
-  htext = '''
-Welcome
-This bot will remind you about taking your medicine by sending you a message.
-Type /start to start a conversation
-You can select your timezone by using /timezone *continentName* command 
-'''
-  update.message.reply_text(htext)
-
-
+#ADD
 def add_name(update: Update, context: CallbackContext) -> int:
   '''Handles pill add'''
   global name_fail
@@ -290,7 +287,7 @@ def after_add(update: Update, context: CallbackContext) -> int:
                                        input_field_placeholder="Choice?"))
     return REMINDER_OPTION
 
-
+#MAIN CONV
 def start(update: Update, context: CallbackContext) -> int:
   """Starts the conversation by showing a menu"""
   #check if timezone is already specified, else set default (UTC)
@@ -321,15 +318,6 @@ def ask_reminders_option(update: Update, context: CallbackContext) -> int:
   update.message.reply_text("What do you want me to do?", reply_markup=markup)
   return REMINDER_OPTION
 
-
-def ask_prescriptions_option(update: Update, context: CallbackContext) -> int:
-  markup = ReplyKeyboardMarkup(PRESCRIPTION_KEYBOARD,
-                               one_time_keyboard=True,
-                               input_field_placeholder="Menu")
-  update.message.reply_text("What do you want me to do?", reply_markup=markup)
-  return PRESCRIPTION_OPTION
-
-
 def quit(update: Update, context: CallbackContext) -> int:
   """Exit the conversation"""
   update.message.reply_text("Okay, see you soon!",
@@ -337,7 +325,7 @@ def quit(update: Update, context: CallbackContext) -> int:
   return ConversationHandler.END
 
 
-#function to select timezone without asking for location
+#TIMEZONE
 def timezone_selection(update: Update, context: CallbackContext) -> int:
   '''Allows user to select a timezone'''
 
@@ -375,7 +363,6 @@ def timezone_selection(update: Update, context: CallbackContext) -> int:
     )
   return MAIN_OPTION
 
-
 def timezone_pick(update: Update, context: CallbackContext) -> None:
   '''Handles user timezone choice method'''
   reply_keyboard = [["Add reminder", "Delete reminder", "Show reminders"],
@@ -393,6 +380,7 @@ def timezone_pick(update: Update, context: CallbackContext) -> None:
     update.message.reply_text("Error in timezone selection",
                               reply_markup=reply_keyboard)
   return MAIN_OPTION
+
 
 
 def main():
