@@ -1,17 +1,23 @@
-import os
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update  #upm package(python-telegram-bot)
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler, PicklePersistence  #upm package(python-telegram-bot)
+
 from datetime import datetime as dt
 import pytz
 
-###############CONSTANTS##################
-#STATES
+import os
+import logging
+#---------------STATES-------------------#
 MAIN_OPTION, REMINDER_OPTION, DELETE_OPTION, SELECT_TIME, SELECT_DAYS, SELECT_NAME, PROCEED_ADD, PROCEED_DELETION, PROCEED_TIMEZONE, SHOW, QUIT = range(
   11)
-#DOMAINS and FORMATS
+#----------------------------------------#
+
+
+#---------------DOMAINS------------------#
 #days
 TIMEZONES = ["europe", "pacific", "indian", "america", "asia", "australia"]
 DAYS_DOMAIN = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN", "ALL"]
+
+
 DAY_STR_TO_NUM = {
   "MON": 0,
   "TUE": 1,
@@ -32,16 +38,18 @@ DAY_NUM_TO_STR = {
   6: "SUN",
   7: "ALL",
 }
+
 #time
 TIME_FORMAT = "%H:%M"
 
-#fixed keyboards
+#------------------KEYBOARDS------------ #
 MAIN_KEYBOARD = [["Pill reminders"], ["Prescription reminders"]]
 REMINDER_KEYBOARD = [["Add reminder", "Delete reminder", "Show reminders"],
                       ["Done"]]
 PRESCRIPTION_KEYBOARD = [[
   "Add prescription", "Delete prescription", "Show prescriptions"
 ], ["Done"]]
+#----------------------------------------#
 
 ###############CONSTANTS##################
 
@@ -51,8 +59,7 @@ name_fail = False
 time_fail = False
 day_fail = False
 
-# Enable logging
-import logging
+
 
 logging.basicConfig(
   format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
