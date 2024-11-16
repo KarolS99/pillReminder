@@ -1,5 +1,5 @@
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update  #upm package(python-telegram-bot)
-from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext, ConversationHandler, PicklePersistence, Application  # upm package(python-telegram-bot)
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, ConversationHandler, PicklePersistence  #upm package(python-telegram-bot)
 
 from datetime import datetime as dt
 import pytz
@@ -95,7 +95,7 @@ def retrieve_user_data(context,type):
 #BOT OPERATIONS
 
 #SHOW
-async def show_reminders(update: Update, context: CallbackContext) -> int:
+def show_reminders(update: Update, context: CallbackContext) -> int:
   ''' Shows user's registrated timers for reminders'''
   reminders = retrieve_user_data(context, 'reminder')
   if len(reminders) > 0:
@@ -105,14 +105,14 @@ async def show_reminders(update: Update, context: CallbackContext) -> int:
       reply_string += "\U0001F48A " + reminder.get(
         "medicine") + "\n\U0001F553 " + reminder.get(
           "time") + "\n\U0001F5D3 " + ' '.join(days) + "\n\n"
-    await update.message.reply_text(reply_string)
+    update.message.reply_text(reply_string)
   else:
-    await update.message.reply_text(
+    update.message.reply_text(
       "\n\n..wait, it looks like you have to setup a timer yet!")
   return REMINDER_OPTION
   
 #DELETE
-async def delete(update: Update, context: CallbackContext) -> int:
+def delete(update: Update, context: CallbackContext) -> int:
   '''Cancel a saved reminder'''
   reminders = retrieve_user_data(context,'reminder')
   if len(reminders):
@@ -131,7 +131,7 @@ async def delete(update: Update, context: CallbackContext) -> int:
                                  one_time_keyboard=True,
                                  input_field_placeholder="Reminder")
 
-    await update.message.reply_text("Which reminder do you want to delete?",
+    update.message.reply_text("Which reminder do you want to delete?",
                               reply_markup=markup)
     return DELETE_OPTION
   else:
@@ -139,11 +139,11 @@ async def delete(update: Update, context: CallbackContext) -> int:
       [["Add reminder", "Delete reminder", "Show reminders"], ["Done"]],
       one_time_keyboard=True,
       input_field_placeholder="Choice")
-    await update.message.reply_text(
+    update.message.reply_text(
       "If you have no reminders, how can you delete one?", reply_markup=markup)
     return REMINDER_OPTION
 
-async def after_delete(update: Update, context: CallbackContext) -> int:
+def after_delete(update: Update, context: CallbackContext) -> int:
   """Deletes reminder"""
   to_delete = update.message.text
   try:
@@ -154,34 +154,34 @@ async def after_delete(update: Update, context: CallbackContext) -> int:
     markup = ReplyKeyboardMarkup([["Yes", "No"]],
                                  one_time_keyboard=True,
                                  input_field_placeholder="Continue?")
-    await update.message.reply_text(text +
+    update.message.reply_text(text +
                               "\nDo you need to delete any other reminder?",
                               reply_markup=markup)
     return PROCEED_DELETION
   except:
-    await update.message.reply_text("Your reminder doesn't exist :(")
+    update.message.reply_text("Your reminder doesn't exist :(")
 
 #ADD
-async def add_name(update: Update, context: CallbackContext) -> int:
+def add_name(update: Update, context: CallbackContext) -> int:
   '''Handles pill add'''
   global name_fail
   text = "Your name is not lower than 10 characters, try with another name (no special characters accepted)" if name_fail else "You are adding a pill reminder. Please, enter the name of the medication. It must be lower than 10 characters and contain no special character."
-  await update.message.reply_text(text, reply_markup=ReplyKeyboardRemove())
+  update.message.reply_text(text, reply_markup=ReplyKeyboardRemove())
   name_fail = True
   return SELECT_NAME
 
-async def add_time(update: Update, context: CallbackContext) -> int:
+def add_time(update: Update, context: CallbackContext) -> int:
   '''Handles time adding'''
   global time_fail, name_fail
   name_fail = False
   #save choosen med
   if time_fail:
-    await update.message.reply_text(
+    update.message.reply_text(
       "Time was not in the right format! Enter a valid time in HH:MM format (with a leading zero)"
     )
   else:
     context.user_data["temp_rem"] = {"medicine": update.message.text}
-    await update.message.reply_text(
+    update.message.reply_text(
       "Fine! Now, tell me what time do you take your medication? You should type time in HH:MM format)"
     )
   time_fail = True
@@ -229,7 +229,7 @@ def add_day(update: Update, context: CallbackContext) -> int:
   return SELECT_DAYS
 
 
-async def after_add(update: Update, context: CallbackContext) -> int:
+def after_add(update: Update, context: CallbackContext) -> int:
   """Adds reminder definitely """
   global day_fail
   user_id = update.message.chat_id
@@ -271,7 +271,7 @@ async def after_add(update: Update, context: CallbackContext) -> int:
       "temp_rem"].get("medicine") + "."
     if job_removed:
       text += "Old one was removed."
-    await update.message.reply_text(text)
+    update.message.reply_text(text)
 
     #cancel temp data
     context.user_data["reminder_" + context.user_data["temp_rem"].get(
@@ -281,13 +281,13 @@ async def after_add(update: Update, context: CallbackContext) -> int:
     markup = ReplyKeyboardMarkup([["Yes", "No"]],
                                  one_time_keyboard=True,
                                  input_field_placeholder="Choice?")
-    await update.message.reply_text("Do you need to add any other reminder?",
+    update.message.reply_text("Do you need to add any other reminder?",
                               reply_markup=markup)
 
     return PROCEED_ADD
 
   except:
-    await update.message.reply_text(
+    update.message.reply_text(
       "Something went wrong and I couldn't add a reminder..",
       reply_markup=ReplyKeyboardMarkup(REMINDER_KEYBOARD,
                                        one_time_keyboard=True,
@@ -295,7 +295,7 @@ async def after_add(update: Update, context: CallbackContext) -> int:
     return REMINDER_OPTION
 
 #MAIN CONV
-async def start(update: Update, context: CallbackContext) -> int:
+def start(update: Update, context: CallbackContext) -> int:
   """Starts the conversation by showing a menu"""
   #check if timezone is already specified, else set default (UTC)
   try:
@@ -306,11 +306,11 @@ async def start(update: Update, context: CallbackContext) -> int:
     context.user_data['region'], context.user_data[
       'timezone'] = "Europe", "London"
 
-
+  
   markup = ReplyKeyboardMarkup(MAIN_KEYBOARD,
                                one_time_keyboard=True,
                                input_field_placeholder="Menu")
-  await update.message.reply_text(
+  update.message.reply_text(
     "Hello there! I can send you a message whenever you need to take a medication or renew your prescription.\U0001F468\U0001F3FB\u200D\u2695\uFE0F\n Choose an option below"
     + timezone_text,
     reply_markup=markup)
@@ -318,22 +318,22 @@ async def start(update: Update, context: CallbackContext) -> int:
   return MAIN_OPTION
 
 
-async def ask_reminders_option(update: Update, context: CallbackContext) -> int:
+def ask_reminders_option(update: Update, context: CallbackContext) -> int:
   markup = ReplyKeyboardMarkup(REMINDER_KEYBOARD,
                                one_time_keyboard=True,
                                input_field_placeholder="Menu")
-  await update.message.reply_text("What do you want me to do?", reply_markup=markup)
+  update.message.reply_text("What do you want me to do?", reply_markup=markup)
   return REMINDER_OPTION
 
-async def quit(update: Update, context: CallbackContext) -> int:
+def quit(update: Update, context: CallbackContext) -> int:
   """Exit the conversation"""
-  await update.message.reply_text("Okay, see you soon!",
+  update.message.reply_text("Okay, see you soon!",
                             reply_markup=ReplyKeyboardRemove())
   return ConversationHandler.END
 
 
 #TIMEZONE
-async def timezone_selection(update: Update, context: CallbackContext) -> int:
+def timezone_selection(update: Update, context: CallbackContext) -> int:
   '''Allows user to select a timezone'''
 
   common_timezones = pytz.common_timezones
@@ -355,22 +355,22 @@ async def timezone_selection(update: Update, context: CallbackContext) -> int:
         reply_keyboard.append(reply_keyboard_row)
 
         reply_keyboard = ReplyKeyboardMarkup(reply_keyboard)
-        await update.message.reply_text("Pick a timezone",
+        update.message.reply_text("Pick a timezone",
                                   reply_markup=reply_keyboard)
         return PROCEED_TIMEZONE
       except:
-        await update.message.reply_text("Error in timezone selection")
+        update.message.reply_text("Error in timezone selection")
     else:
-      await update.message.reply_text(
+      update.message.reply_text(
         "You should type one of the following with your command: Europe, Pacific, Indian, America, Asia, Australia"
       )
   else:
-    await update.message.reply_text(
+    update.message.reply_text(
       "Couldn't save timezone. Right use for the command is /timezone region\n"
     )
   return MAIN_OPTION
 
-async def timezone_pick(update: Update, context: CallbackContext) -> None:
+def timezone_pick(update: Update, context: CallbackContext) -> None:
   '''Handles user timezone choice method'''
   reply_keyboard = [["Add reminder", "Delete reminder", "Show reminders"],
                     ["Done"]]
@@ -379,95 +379,94 @@ async def timezone_pick(update: Update, context: CallbackContext) -> None:
                                        input_field_placeholder="Choice?")
   try:
     context.user_data["timezone"] = update.message.text
-    await update.message.reply_text(
+    update.message.reply_text(
       "Timezone was correctly selected! Now all the timers will work according to your current timezone: "
       + context.user_data["region"] + "/" + context.user_data["timezone"],
       reply_markup=reply_keyboard)
   except:
-    await update.message.reply_text("Error in timezone selection",
+    update.message.reply_text("Error in timezone selection",
                               reply_markup=reply_keyboard)
   return MAIN_OPTION
 
 
 
 def main():
-  #persistence = PicklePersistence(filepath="conversationbot")
-  application = Application.builder().token(os.environ["TELEGRAM_BOT_API_TOKEN"]).build()
-  #updater = Updater(os.getenv("TOKEN"), update_queue=persistence)
-  #updater.start_polling()
+  persistence = PicklePersistence(filename="conversationbot")
+  updater = Updater(os.getenv("TOKEN"), persistence=persistence)
+  dispatcher = updater.dispatcher
 
   conv_handler = ConversationHandler(
     entry_points=[CommandHandler("start", start)],
     states={
       MAIN_OPTION: [
-        MessageHandler(filters.Regex("^Pill reminders$"),
+        MessageHandler(Filters.regex("^Pill reminders$"),
                        ask_reminders_option),
-        #MessageHandler(filters.Regex("^Prescription reminders$"),
-        #               ask_prescriptions_option),
+        MessageHandler(Filters.regex("^Prescription reminders$"),
+                       ask_prescriptions_option),
         CommandHandler("timezone", timezone_selection),
       ],
       REMINDER_OPTION: [
-        MessageHandler(filters.Regex("^Show reminders$"), show_reminders),
-        MessageHandler(filters.Regex("^Add reminder$"), add_name),
-        MessageHandler(filters.Regex("^Delete reminder$"), delete),
+        MessageHandler(Filters.regex("^Show reminders$"), show_reminders),
+        MessageHandler(Filters.regex("^Add reminder$"), add_name),
+        MessageHandler(Filters.regex("^Delete reminder$"), delete),
         CommandHandler("timezone", timezone_selection),
       ],
       DELETE_OPTION: [
         CommandHandler("quit", quit),
-        MessageHandler(filters.TEXT & (filters.Regex("^Cancel$")),
+        MessageHandler(Filters.text & (~Filters.regex("^Cancel$")),
                        after_delete),
-        MessageHandler(filters.Regex("^Cancel$"), ask_reminders_option),
+        MessageHandler(Filters.regex("^Cancel$"), ask_reminders_option),
       ],
       PROCEED_DELETION: [
-        MessageHandler(filters.Regex("^Yes$"), delete),
-        MessageHandler(filters.Regex("^No$"), ask_reminders_option),
+        MessageHandler(Filters.regex("^Yes$"), delete),
+        MessageHandler(Filters.regex("^No$"), ask_reminders_option),
       ],
       SELECT_NAME: [
         CommandHandler("quit", quit),
-        MessageHandler(filters.Regex("^[a-zA-Z1-9]{0,10}$"), add_time),
-        MessageHandler(filters.TEXT & (~filters.Regex("^[a-z && A-Z]{0,10}$")),
+        MessageHandler(Filters.regex("^[a-zA-Z1-9]{0,10}$"), add_time),
+        MessageHandler(Filters.text & (~Filters.regex("^[a-z && A-Z]{0,10}$")),
                        add_name),
       ],
       SELECT_TIME: [
         CommandHandler("quit", quit),
-        MessageHandler(filters.Regex("^([0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"),
+        MessageHandler(Filters.regex("^([0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$"),
                        add_day),
         MessageHandler(
-          filters.TEXT &
-          (~filters.Regex("^([0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$")), add_time),
+          Filters.text &
+          (~Filters.regex("^([0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$")), add_time),
       ],
       SELECT_DAYS: [
         CommandHandler("quit", quit),
-        MessageHandler(filters.Regex("^(MON|TUE|WED|THU|FRI|SAT|SUN|ALL)$"),
+        MessageHandler(Filters.regex("^(MON|TUE|WED|THU|FRI|SAT|SUN|ALL)$"),
                        add_day),
-        MessageHandler(filters.Regex("^That\'s all"), after_add),
+        MessageHandler(Filters.regex("^That\'s all"), after_add),
         MessageHandler(
-          filters.TEXT &
-          (~filters.Regex("^(MON|TUE|WED|THU|FRI|SAT|SUN|ALL)$")), add_day)
+          Filters.text &
+          (~Filters.regex("^(MON|TUE|WED|THU|FRI|SAT|SUN|ALL)$")), add_day)
       ],
       PROCEED_ADD: [
-        MessageHandler(filters.Regex("^Yes$"), add_name),
-        MessageHandler(filters.Regex("^No$"), ask_reminders_option),
+        MessageHandler(Filters.regex("^Yes$"), add_name),
+        MessageHandler(Filters.regex("^No$"), ask_reminders_option),
       ],
       PROCEED_TIMEZONE: [
         CommandHandler("quit", quit),
-        MessageHandler(filters.Regex("^[a-zA-Z_//]{0,15}$"), timezone_pick),
-        MessageHandler(filters.TEXT & (~filters.Regex("^[a-z && A-Z]{0,10}$")),
+        MessageHandler(Filters.regex("^[a-zA-Z_//]{0,15}$"), timezone_pick),
+        MessageHandler(Filters.text & (~Filters.regex("^[a-z && A-Z]{0,10}$")),
                        timezone_selection),
       ],
     },
     fallbacks=[
       CommandHandler("quit", quit),
-      MessageHandler(filters.Regex("^Done$"), start)
+      MessageHandler(Filters.regex("^Done$"), start)
     ],
-    name="my_conversation"
-    #persistent=True,
+    name="my_conversation",
+    persistent=True,
   )
 
-  application.add_handler(conv_handler)
-  application.run_polling()
+  dispatcher.add_handler(conv_handler)
+  updater.start_polling()
+  updater.idle()
 
 
 if __name__ == '__main__':
   main()
-
