@@ -191,7 +191,7 @@ async def add_time(update: Update, context: CallbackContext) -> int:
 #HERE I should implement an inline keyboard
 #
 #
-def add_day(update: Update, context: CallbackContext) -> int:
+async def add_day(update: Update, context: CallbackContext) -> int:
   '''Handles day choice '''
   global day_fail, time_fail
   time_fail = False
@@ -225,7 +225,7 @@ def add_day(update: Update, context: CallbackContext) -> int:
   markup = ReplyKeyboardMarkup([not_chosen_days, chosen_days, ["That's all"]],
                                one_time_keyboard=True,
                                input_field_placeholder="Days")
-  update.message.reply_text("Add days or remove them", reply_markup=markup)
+  await update.message.reply_text("Add days or remove them", reply_markup=markup)
   return SELECT_DAYS
 
 
