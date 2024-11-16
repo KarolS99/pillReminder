@@ -158,8 +158,10 @@ async def after_delete(update: Update, context: CallbackContext) -> int:
                               "\nDo you need to delete any other reminder?",
                               reply_markup=markup)
     return PROCEED_DELETION
-  except:
-    await update.message.reply_text("Your reminder doesn't exist :(")
+  except Exception as e:
+    logger.error(f"Error occurred while deleting reminder: {e}")
+    logger.debug(f"Context data: {context.user_data}")
+    logger.debug(f"Update data: {update.message.to_dict()}")
 
 #ADD
 async def add_name(update: Update, context: CallbackContext) -> int:
@@ -230,69 +232,75 @@ async def add_day(update: Update, context: CallbackContext) -> int:
 
 
 async def after_add(update: Update, context: CallbackContext) -> int:
-  """Adds reminder definitely """
+  """Adds reminder definitely"""
   global day_fail
   user_id = update.message.chat_id
   text = ""
 
   try:
-    #reset global variable
+    # Reset global variable
     day_fail = False
 
-    #remove old job if exists
+    # Remove old job if exists
     job_removed = remove_job_if_exists(
       "reminder_" + context.user_data["temp_rem"].get("medicine"), context)
-    #server time is utc, client time is selected with /timezone
+
+    # Server time is UTC, client time is selected with /timezone
     timezone1 = pytz.timezone("UTC")
-    timezone2 = pytz.timezone(context.user_data["region"] + '/' +
-                              context.user_data["timezone"])
+    timezone2 = pytz.timezone(context.user_data["region"] + '/' + context.user_data["timezone"])
 
-    #time_for_job is not enough cause pytz may give historical value,so I use today's date
-    time_for_job = dt.strptime(context.user_data["temp_rem"].get("time"),
-                               time_format)
-    recent_time_for_job = dt.now().replace(hour=time_for_job.hour,
-                                           minute=time_for_job.minute)
+    logger.info("Timezone set")
 
-    #convert it from local timezone to utc
+    # Parse time for the reminder (using today's date to set the time)
+    time_for_job = dt.strptime(context.user_data["temp_rem"].get("time"), TIME_FORMAT)
+    recent_time_for_job = dt.now().replace(hour=time_for_job.hour, minute=time_for_job.minute)
+
+    # Convert it from local timezone to UTC
     recent_time_for_job = timezone2.localize(recent_time_for_job)
     converted_date = recent_time_for_job.astimezone(timezone1)
     utc_time_for_job = converted_date.time()
 
+    # Days to run the job
     days_to_run = tuple(context.user_data["temp_rem"].get("days"))
-    #finally run the job
-    context.job_queue.run_daily(alarm,
-                                utc_time_for_job,
-                                days_to_run,
-                                context=user_id,
-                                name="reminder_" +
-                                context.user_data["temp_rem"].get("medicine"))
 
-    text = "Reminder added! You will receive a message whenever you have to take your " + context.user_data[
-      "temp_rem"].get("medicine") + "."
+    # Finally run the job
+    context.job_queue.run_daily(
+      alarm,
+      utc_time_for_job,
+      days_to_run,
+      name="reminder_" + context.user_data["temp_rem"].get("medicine"),
+      user_id=user_id
+    )
+
+    # Success message
+    text = f"Reminder added! You will receive a message whenever you have to take your {context.user_data['temp_rem'].get('medicine')}."
     if job_removed:
-      text += "Old one was removed."
+      text += " Old one was removed."
+
     await update.message.reply_text(text)
 
-    #cancel temp data
-    context.user_data["reminder_" + context.user_data["temp_rem"].get(
-      "medicine")] = context.user_data["temp_rem"]
+    # Cancel temp data
+    context.user_data["reminder_" + context.user_data["temp_rem"].get("medicine")] = context.user_data["temp_rem"]
     context.user_data["temp_rem"] = []
 
-    markup = ReplyKeyboardMarkup([["Yes", "No"]],
-                                 one_time_keyboard=True,
-                                 input_field_placeholder="Choice?")
-    await update.message.reply_text("Do you need to add any other reminder?",
-                              reply_markup=markup)
+    # Ask if the user wants to add another reminder
+    markup = ReplyKeyboardMarkup([["Yes", "No"]], one_time_keyboard=True, input_field_placeholder="Choice?")
+    await update.message.reply_text("Do you need to add any other reminder?", reply_markup=markup)
 
     return PROCEED_ADD
 
-  except:
+  except Exception as e:
+    logger.error(f"Error occurred while adding reminder: {e}")
+    logger.debug(f"Context data: {context.user_data}")
+    logger.debug(f"Update data: {update.message.to_dict()}")
+
+    # Inform the user that something went wrong
     await update.message.reply_text(
       "Something went wrong and I couldn't add a reminder..",
-      reply_markup=ReplyKeyboardMarkup(REMINDER_KEYBOARD,
-                                       one_time_keyboard=True,
-                                       input_field_placeholder="Choice?"))
+      reply_markup=ReplyKeyboardMarkup(REMINDER_KEYBOARD, one_time_keyboard=True, input_field_placeholder="Choice?")
+    )
     return REMINDER_OPTION
+
 
 #MAIN CONV
 async def start(update: Update, context: CallbackContext) -> int:
@@ -301,7 +309,10 @@ async def start(update: Update, context: CallbackContext) -> int:
   try:
     timezone_text = "\nCurrent timezone: " + context.user_data[
       'region'] + "/" + context.user_data['timezone']
-  except:
+  except Exception as e:
+    logger.error(f"Error occurred while taking timezone: {e}")
+    logger.debug(f"Context data: {context.user_data}")
+    logger.debug(f"Update data: {update.message.to_dict()}")
     timezone_text = "\nNo timezome selected: Europe/London (UTC/GMT) will be used, but you can change your timezone by using /timezone"
     context.user_data['region'], context.user_data[
       'timezone'] = "Europe", "London"
@@ -358,7 +369,10 @@ async def timezone_selection(update: Update, context: CallbackContext) -> int:
         await update.message.reply_text("Pick a timezone",
                                   reply_markup=reply_keyboard)
         return PROCEED_TIMEZONE
-      except:
+      except Exception as e:
+        logger.error(f"Error occurred while picking a timezone: {e}")
+        logger.debug(f"Context data: {context.user_data}")
+        logger.debug(f"Update data: {update.message.to_dict()}")
         await update.message.reply_text("Error in timezone selection")
     else:
       await update.message.reply_text(
@@ -383,8 +397,11 @@ async def timezone_pick(update: Update, context: CallbackContext) -> None:
       "Timezone was correctly selected! Now all the timers will work according to your current timezone: "
       + context.user_data["region"] + "/" + context.user_data["timezone"],
       reply_markup=reply_keyboard)
-  except:
-    await update.message.reply_text("Error in timezone selection",
+  except Exception as e:
+    logger.error(f"Error occurred while adding reminder: {e}")
+    logger.debug(f"Context data: {context.user_data}")
+    logger.debug(f"Update data: {update.message.to_dict()}")
+    await update.message.reply_text("Error in picking timezone",
                               reply_markup=reply_keyboard)
   return MAIN_OPTION
 
